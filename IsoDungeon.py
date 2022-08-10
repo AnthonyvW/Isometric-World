@@ -1,4 +1,5 @@
 import pygame
+import math
 import random
 import os
 from opensimplex import OpenSimplex
@@ -103,7 +104,7 @@ def draw(xSelect, ySelect, zSelect, xOffset, yOffset):
         for x in range(ChunkXSize - 1, -1, -1):
             for z in range(ChunkZSize):
                 if(Chunk[x][y][z] == 1):
-                    if(xSelect == x and ySelect == y):
+                    if(xSelect == x and ySelect == y and zSelect == z):
                         screen.blit(Selector, (x * BlockXOffset + y * BlockXOffset + xOffset, y * BlockYOffset - x * BlockYOffset + yOffset - z*BlockZOffset))
                     else:
                         screen.blit(Block, (x * BlockXOffset + y * BlockXOffset + xOffset, y * BlockYOffset - x * BlockYOffset + yOffset - z*BlockZOffset))
@@ -112,13 +113,45 @@ def draw(xSelect, ySelect, zSelect, xOffset, yOffset):
 def isLeft(aX, aY, bX, bY, cX, cY):
     return ((cX - aX) * (bY - aY) - (cY - aY) * (bX - aX)) < 0
 
+def blockExists(x, y, z):
+    return x < ChunkXSize and x >= 0 and y < ChunkYSize and y >= 0 and z < ChunkZSize and z >= 0 and Chunk[x][y][z] != 0
+
+def blockTrace(x, y):
+    z = ChunkZSize - 1
+    curx = math.floor(x)
+    cury = math.floor(y)
+    found = False
+    while not found:
+        if z < 0:
+            found = True
+        elif blockExists(curx, cury, z):
+            return (curx, cury, z)
+        elif(math.fabs(x % 1) + math.fabs( y % 1) > 1):
+            if blockExists(curx + 1, cury, z):
+                return (curx + 1, cury, z)
+            elif blockExists(curx + 1, cury - 1, z):
+                return (curx + 1, cury - 1, z)
+            else:
+                z -= 1
+                curx += 1
+                cury -= 1
+        else:
+            if blockExists(curx, cury - 1, z):
+                return (curx, cury - 1, z)
+            elif blockExists(curx + 1, cury - 1, z):
+                return (curx + 1, cury - 1, z)
+            else:
+                z -= 1
+                curx += 1
+                cury -= 1
+    return (x, y, z)
 
 run = True
 clock = pygame.time.Clock()
 while run:
     # Clock Speed
     clock.tick()
-    #print(clock.get_fps())
+    print(clock.get_fps())
 
     XScreenOffset = 0
     YScreenOffset = ChunkXSize * BlockYOffset - BlockYOffset + ChunkYSize * BlockZOffset / 2
@@ -129,9 +162,9 @@ while run:
     mousePosX1 = (pos[0] - XScreenOffset) / BlockXOffset
     mousePosY1 = (pos[1] - YScreenOffset) / BlockYOffset
 
-    selectedX = (mousePosX1 - mousePosY1) / 2 + 0.5
-    selectedY = (mousePosX1 + mousePosY1) / 2 - 0.5
-    selectedZ = ChunkZSize - 1
+    selectedX = (mousePosX1 - mousePosY1) / 2 - (ChunkZSize - 1) + 0.5
+    selectedY = (mousePosX1 + mousePosY1) / 2 + (ChunkZSize - 1) - 0.5
+    selectedX, selectedY, selectedZ = blockTrace(selectedX, selectedY)
 
     # Keypresses
     for event in pygame.event.get():
@@ -141,7 +174,7 @@ while run:
     # Background
     screen.fill((0, 0, 0))
     # Draw Tiles
-    draw(int(selectedX), int(selectedY), int(selectedZ), XScreenOffset, YScreenOffset)
+    draw(math.floor(selectedX), math.floor(selectedY), math.floor(selectedZ), XScreenOffset, YScreenOffset)
     # Puts everything on the display
     pygame.display.update()
 

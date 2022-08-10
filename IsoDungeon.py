@@ -20,7 +20,7 @@ def draw_text(text, _x, _y, color=(255, 255, 255), font=gameFont):
     img = font.render(text, True, color)
     screen.blit(img, (_x, _y))
 
-Scale = 2
+Scale = 1
 OriginalBlockSize = 32
 BlockSize = OriginalBlockSize * Scale
 BlockZOffset = BlockSize / 2
@@ -78,8 +78,8 @@ pygame.display.set_icon(Block)
 SimplexNoise = OpenSimplex(0)
 Chunk = []
 ChunkXSize = 64
-ChunkYSize = 156
-ChunkZSize = 1
+ChunkYSize = 64
+ChunkZSize = 64
 for x in range(ChunkXSize):
     Chunk.append([])
     xCoord = x / 32
@@ -100,19 +100,14 @@ for x in range(ChunkXSize):
 def draw(xSelect, ySelect, zSelect, xOffset, yOffset):
     global BlockZOffset,BlockYOffset,BlockXWidthOffset,BlockXOffset
     for y in range(ChunkYSize):
-        for x in range(ChunkXSize):
+        for x in range(ChunkXSize - 1, -1, -1):
             for z in range(ChunkZSize):
                 if(Chunk[x][y][z] == 1):
-                    if(x == xSelect and y == ySelect and z == zSelect):
-                        if (y % 2 == 0):
-                            screen.blit(Selector, (x * BlockXWidthOffset + xOffset, y * BlockYOffset - z * BlockZOffset + yOffset))
-                        else:
-                            screen.blit(Selector, (BlockXOffset + x * BlockXWidthOffset + xOffset,y * BlockYOffset - z * BlockZOffset + yOffset))
-                    elif(y % 2 == 0):
-                        screen.blit(Block, (x * BlockXWidthOffset + xOffset, y * BlockYOffset - z * BlockZOffset + yOffset))
+                    if(xSelect == x and ySelect == y):
+                        screen.blit(Selector, (x * BlockXOffset + y * BlockXOffset + xOffset, y * BlockYOffset - x * BlockYOffset + yOffset - z*BlockZOffset))
                     else:
-                        screen.blit(Block, (BlockXOffset + x * BlockXWidthOffset + xOffset, y * BlockYOffset - z * BlockZOffset + yOffset))
-                    #screen.blit(Block, (x * 16 + y * 16 + xOffset, y * 8 - x * 8 + yOffset - z*16))
+                        screen.blit(Block, (x * BlockXOffset + y * BlockXOffset + xOffset, y * BlockYOffset - x * BlockYOffset + yOffset - z*BlockZOffset))
+
 
 def isLeft(aX, aY, bX, bY, cX, cY):
     return ((cX - aX) * (bY - aY) - (cY - aY) * (bX - aX)) < 0
@@ -125,17 +120,18 @@ while run:
     clock.tick()
     #print(clock.get_fps())
 
-    XScreenOffset = -BlockXOffset  # -ChunkXSize * 32 / 2 + SCREEN_WIDTH/2
-    YScreenOffset = ChunkZSize * BlockZOffset  # ChunkYSize * 32 / 2
+    XScreenOffset = 0
+    YScreenOffset = ChunkXSize * BlockYOffset - BlockYOffset + ChunkYSize * BlockZOffset / 2
 
     # Mouse Position
     pos = pygame.mouse.get_pos()
-    x = (pos[0] - XScreenOffset) / BlockXOffset
-    y = (pos[1] - YScreenOffset) / BlockYOffset
-    z = ChunkZSize - 1
 
-    if(int(y) % 2 == 1):
-        x -= 1
+    mousePosX1 = (pos[0] - XScreenOffset) / BlockXOffset
+    mousePosY1 = (pos[1] - YScreenOffset) / BlockYOffset
+
+    selectedX = (mousePosX1 - mousePosY1) / 2 + 0.5
+    selectedY = (mousePosX1 + mousePosY1) / 2 - 0.5
+    selectedZ = ChunkZSize - 1
 
     # Keypresses
     for event in pygame.event.get():
@@ -144,78 +140,8 @@ while run:
 
     # Background
     screen.fill((0, 0, 0))
-
-    if(int(y) % 2 == 1):
-        if(int(x + 1) % 2 == 0):
-            if not isLeft(
-                    int(x + 1) * BlockXOffset, int(y)     * BlockYOffset,
-                    int(x + 2) * BlockXOffset, int(y + 1) * BlockYOffset,
-                    pos[0] - XScreenOffset, pos[1] - YScreenOffset
-                ):
-                x += 1
-                y -= 1
-        else:
-            if not isLeft(
-                    int(x + 1) * BlockXOffset, int(y + 1) * BlockYOffset,
-                    int(x + 2) * BlockXOffset, int(y)     * BlockYOffset,
-                    pos[0] - XScreenOffset, pos[1] - YScreenOffset
-                ):
-                x += 1
-                y -= 1
-    else:
-        if (int(x + 1) % 2 == 0):
-            if not isLeft(
-                    int(x)     * BlockXOffset, int(y)     * BlockYOffset,
-                    int(x + 1) * BlockXOffset, int(y + 1) * BlockYOffset,
-                    pos[0] - XScreenOffset, pos[1] - YScreenOffset
-                ):
-                y -= 1
-
-        else:
-            if not isLeft(
-                    int(x)     * BlockXOffset, int(y + 1) * BlockYOffset,
-                    int(x + 1) * BlockXOffset, int(y)     * BlockYOffset,
-                    pos[0] - XScreenOffset, pos[1] - YScreenOffset
-                ):
-                x -= 1
-                y -= 1
-
-    # Bottom Top
-    pygame.draw.line(screen, (255,0,0),
-                     (XScreenOffset, YScreenOffset),
-                     (XScreenOffset + ChunkXSize * BlockXWidthOffset + BlockXOffset, YScreenOffset))
-    # Bottom Left
-    pygame.draw.line(screen, (255,0,0),
-                     (XScreenOffset, YScreenOffset),
-                     (XScreenOffset, YScreenOffset + ChunkYSize * BlockYOffset + BlockSize))
-    # Bottom Right
-    pygame.draw.line(screen, (255,0,0),
-                     (XScreenOffset + ChunkXSize * BlockXWidthOffset + BlockXOffset, YScreenOffset),
-                     (XScreenOffset + ChunkXSize * BlockXWidthOffset + BlockXOffset, YScreenOffset + ChunkYSize * BlockYOffset + BlockSize))
-    # Bottom Bottom
-    pygame.draw.line(screen, (255,0,0),
-                     (XScreenOffset, YScreenOffset + ChunkYSize * BlockYOffset + BlockSize),
-                     (XScreenOffset + ChunkXSize * BlockXWidthOffset + BlockXOffset, YScreenOffset + ChunkYSize * BlockYOffset + BlockSize))
-
-    draw(int(x / 2), int(y), z, XScreenOffset, YScreenOffset)
-
-    # Top Top
-    pygame.draw.line(screen, (255, 0, 0),
-                     (XScreenOffset,YScreenOffset - ChunkZSize * BlockZOffset),
-                     (XScreenOffset + ChunkXSize * BlockXWidthOffset + BlockXOffset,YScreenOffset - ChunkZSize * BlockZOffset))
-    # Top Left
-    pygame.draw.line(screen, (255, 0, 0),
-                     (XScreenOffset,YScreenOffset - ChunkZSize * BlockZOffset),
-                     (XScreenOffset,YScreenOffset + ChunkYSize * BlockYOffset - ChunkZSize * BlockZOffset + BlockSize))
-    # Top Right
-    pygame.draw.line(screen, (255, 0, 0),
-                     (XScreenOffset + ChunkXSize * BlockXWidthOffset + BlockXOffset,YScreenOffset - ChunkZSize * BlockZOffset),
-                     (XScreenOffset + ChunkXSize * BlockXWidthOffset + BlockXOffset,YScreenOffset + ChunkYSize * BlockYOffset - ChunkZSize * BlockZOffset + BlockSize))
-    # Top Bottom
-    pygame.draw.line(screen, (255, 0, 0),
-                     (XScreenOffset,YScreenOffset + ChunkYSize * BlockYOffset - ChunkZSize * BlockZOffset + BlockSize),
-                     (XScreenOffset + ChunkXSize * BlockXWidthOffset + BlockXOffset,YScreenOffset + ChunkYSize * BlockYOffset - ChunkZSize * BlockZOffset + BlockSize))
-
+    # Draw Tiles
+    draw(int(selectedX), int(selectedY), int(selectedZ), XScreenOffset, YScreenOffset)
     # Puts everything on the display
     pygame.display.update()
 

@@ -284,6 +284,8 @@ while run:
                 movingDown = True
         if event.type == pygame.MOUSEBUTTONDOWN:
             if(event.button == 1):
+                if (selectedX < 0 or selectedX > ChunkXSize or selectedY < 0 or selectedY > ChunkYSize or selectedZ > ChunkZSize or selectedZ < 0):
+                    continue
                 # Place Block when Left Click
                 if(side == 0 and selectedZ < ChunkZSize - 1 and selectedZ > 0):
                     Chunk[int(selectedX)][int(selectedY)][int(selectedZ) + 1] = 1
@@ -306,7 +308,7 @@ while run:
                 xOff2 = xPos + BlockXOffset / 2
                 xOff3 = xPos + BlockXOffset / 2 * 3
                 # World Bounds Check
-                if(selectedX < 0 or selectedX > ChunkXSize or selectedY < 0 or selectedY > ChunkYSize or selectedZ > ChunkZSize):
+                if(selectedX < 0 or selectedX > ChunkXSize or selectedY < 0 or selectedY > ChunkYSize or selectedZ > ChunkZSize or selectedZ < 0):
                     continue
                 # Delete Block
                 Chunk[int(selectedX)][int(selectedY)][int(selectedZ)] = 0

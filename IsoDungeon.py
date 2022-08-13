@@ -21,7 +21,7 @@ def draw_text(text, _x, _y, color=(255, 255, 255), font=gameFont):
     img = font.render(text, True, color)
     screen.blit(img, (_x, _y))
 
-Scale = 1
+Scale = 2
 OriginalBlockSize = 32
 BlockSize = OriginalBlockSize * Scale
 BlockZOffset = BlockSize / 2
@@ -70,11 +70,11 @@ RedSelector = TileSheet.get_image(0, 160,32,32).convert_alpha()
 colorPal = TileSheet.get_image(0,32, 352, 32).convert_alpha()
 ReplaceImg(colorPal, Block)
 
+pygame.display.set_icon(Block)
+
 Block = scale_image(Scale, Block)
 Selector = scale_image(Scale, Selector)
 RedSelector = scale_image(Scale, RedSelector)
-
-pygame.display.set_icon(Block)
 
 SimplexNoise = OpenSimplex(0)
 Chunk = []
@@ -90,13 +90,14 @@ for x in range(ChunkXSize):
         yCoord = y / 32
 
         for z in range(ChunkZSize):
-            noise = SimplexNoise.noise3d(xCoord, yCoord, z / 32)
+            noise = SimplexNoise.noise2d(xCoord, yCoord) * ChunkZSize / 8 + ChunkZSize / 2
 
-            if(noise > 0.3):
+            if(noise > z):
                 Chunk[x][y].append(1)
             else:
                 Chunk[x][y].append(0)
 
+# Process World so rendering is faster
 for x in range(ChunkXSize):
     drawChunk.append([])
     for y in range(ChunkYSize):
@@ -105,7 +106,7 @@ for x in range(ChunkXSize):
             isExposed = False
             # X Axis Check
             if (x > 0 and x + 1 < ChunkXSize):
-                isExposed = Chunk[x - 1][y][z] == 0 or Chunk[x + 1][y][z] == 0
+                isExposed = Chunk[x - 1][y][z] == 0
             elif (x > 0):
                 isExposed = Chunk[x - 1][y][z] == 0
             else:
@@ -117,7 +118,7 @@ for x in range(ChunkXSize):
 
             # Y Axis Check
             if (y > 0 and y + 1 < ChunkYSize):
-                isExposed = Chunk[x][y - 1][z] == 0 or Chunk[x][y + 1][z] == 0
+                isExposed = Chunk[x][y + 1][z] == 0
             elif (y > 0):
                 isExposed = True
             else:
@@ -129,7 +130,7 @@ for x in range(ChunkXSize):
 
             # Z Axis Check
             if (z > 0 and z + 1 < ChunkZSize):
-                isExposed = Chunk[x][y][z - 1] == 0 or Chunk[x][y][z + 1] == 0
+                isExposed = Chunk[x][y][z + 1] == 0
             elif (z > 0):
                 isExposed = True
             else:
@@ -158,21 +159,6 @@ def draw(xSelect, ySelect, zSelect, xOffset, yOffset):
                     screen.blit(Block, (xLoopOffset, yMxOffset - z * BlockZOffset))
                     if (xSelect == x and ySelect == y and zSelect == z):
                         screen.blit(Selector, (xLoopOffset, yMxOffset - z * BlockZOffset))
-
-'''def draw(xSelect, ySelect, zSelect, xOffset, yOffset):
-    global BlockZOffset,BlockYOffset,BlockXWidthOffset,BlockXOffset
-
-    for y in range(ChunkYSize):
-        for x in range(ChunkXSize - 1, -1, -1):
-            for z in range(ChunkZSize):
-                if(Chunk[x][y][z] == 1):
-                    if(y * BlockYOffset - x * BlockYOffset + yOffset - z * BlockZOffset + BlockSize > 0):
-                        screen.blit(Block, (x * BlockXOffset + y * BlockXOffset + xOffset, y * BlockYOffset - x * BlockYOffset + yOffset - z*BlockZOffset))
-                        if (xSelect == x and ySelect == y and zSelect == z):
-                            screen.blit(Selector, (x * BlockXOffset + y * BlockXOffset + xOffset,y * BlockYOffset - x * BlockYOffset + yOffset - z * BlockZOffset))
-                    else:
-                        break'''
-
 
 def isLeft(aX, aY, bX, bY, cX, cY):
     return ((cX - aX) * (bY - aY) - (cY - aY) * (bX - aX)) < 0
@@ -219,6 +205,7 @@ XScreenOffset = -0
 YScreenOffset = ChunkXSize * BlockYOffset - BlockYOffset + ChunkYSize * BlockZOffset / 2
 
 def ScreenToBlock(x, y):
+    # Gets screen coordinates and outputs the block on the topmost Z level
     global XScreenOffset, YScreenOffset
     selectedX = (x - XScreenOffset) / BlockXOffset
     selectedY = (y - YScreenOffset) / BlockYOffset
@@ -226,6 +213,46 @@ def ScreenToBlock(x, y):
     blockX = (selectedX - selectedY) / 2 - (ChunkZSize - 1) + 0.5
     blockY = (selectedX + selectedY) / 2 + (ChunkZSize - 1) - 0.5
     return blockX, blockY
+
+def SelectBlock(x, y):
+    # Gets screen coordinates and outputs the block on the topmost Z level
+    global XScreenOffset, YScreenOffset
+    selectedX = (x - XScreenOffset) / BlockXOffset
+    selectedY = (y - YScreenOffset) / BlockYOffset
+
+    blockX = (selectedX - selectedY) / 2 - (ChunkZSize - 1) + 0.5
+    blockY = (selectedX + selectedY) / 2 + (ChunkZSize - 1) - 0.5
+
+    side = 0
+    z = ChunkZSize - 1
+    curx = math.floor(blockX)
+    cury = math.floor(blockY)
+    found = False
+    while not found:
+        if z < 0:
+            found = True
+        elif blockExists(curx, cury, z):
+            return (curx, cury, z, 0)
+        elif (math.fabs(blockX % 1) + math.fabs(blockY % 1) > 1):
+            if blockExists(curx + 1, cury, z):
+                return (curx + 1, cury, z, 1)
+            elif blockExists(curx + 1, cury - 1, z):
+                return (curx + 1, cury - 1, z, 2)
+            else:
+                z -= 1
+                curx += 1
+                cury -= 1
+        else:
+            if blockExists(curx, cury - 1, z):
+                return (curx, cury - 1, z, 2)
+            elif blockExists(curx + 1, cury - 1, z):
+                return (curx + 1, cury - 1, z, 1)
+            else:
+                z -= 1
+                curx += 1
+                cury -= 1
+
+    return blockX, blockY, z, side
 
 # Keyboard
 movingLeft = False
@@ -235,18 +262,12 @@ movingDown = False
 
 while run:
     # Clock Speed
-    clock.tick(60)
-    print(clock.get_fps())
+    clock.tick()
+    #print(clock.get_fps())
 
     # Mouse Position
     pos = pygame.mouse.get_pos()
-
-    #mousePosX1 = (pos[0] - XScreenOffset) / BlockXOffset
-    #mousePosY1 = (pos[1] - YScreenOffset) / BlockYOffset
-
-    selectedX, selectedY = ScreenToBlock(pos[0], pos[1])#(mousePosX1 - mousePosY1) / 2 - (ChunkZSize - 1) + 0.5
-    #selectedY = (mousePosX1 + mousePosY1) / 2 + (ChunkZSize - 1) - 0.5
-    selectedX, selectedY, selectedZ = blockTrace(selectedX, selectedY)
+    selectedX, selectedY, selectedZ, side = SelectBlock(pos[0], pos[1])
 
     # Keypresses
     for event in pygame.event.get():
@@ -261,6 +282,55 @@ while run:
                 movingUp = True
             if event.key == pygame.K_s or event.key == pygame.K_DOWN:
                 movingDown = True
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if(event.button == 1):
+                # Place Block when Left Click
+                if(side == 0 and selectedZ < ChunkZSize - 1 and selectedZ > 0):
+                    Chunk[int(selectedX)][int(selectedY)][int(selectedZ) + 1] = 1
+                    drawChunk[int(selectedX)][int(selectedY)][int(selectedZ) + 1] = 1
+                elif(side == 1 and selectedX > 0 and selectedX < ChunkXSize - 1):
+                    Chunk[int(selectedX) - 1][int(selectedY)][int(selectedZ)] = 1
+                    drawChunk[int(selectedX) - 1][int(selectedY)][int(selectedZ)] = 1
+                elif(selectedY < ChunkYSize - 1 and selectedY > 0):
+                    Chunk[int(selectedX)][int(selectedY) + 1][int(selectedZ)] = 1
+                    drawChunk[int(selectedX)][int(selectedY) + 1][int(selectedZ)] = 1
+            elif(event.button == 3):
+                # Remove Block When Right click
+                # Select block
+                x, y, z, e = SelectBlock(pos[0], pos[1])
+                # Get its position
+                yy = math.floor(y)
+                xx = math.floor(x)
+                xPos = xx * BlockXOffset + yy * BlockXOffset + XScreenOffset
+                yPos = yy * BlockYOffset + YScreenOffset - xx * BlockYOffset - (z) * BlockZOffset
+                xOff2 = xPos + BlockXOffset / 2
+                xOff3 = xPos + BlockXOffset / 2 * 3
+                # World Bounds Check
+                if(selectedX < 0 or selectedX > ChunkXSize or selectedY < 0 or selectedY > ChunkYSize or selectedZ > ChunkZSize):
+                    continue
+                # Delete Block
+                Chunk[int(selectedX)][int(selectedY)][int(selectedZ)] = 0
+                drawChunk[int(selectedX)][int(selectedY)][int(selectedZ)] = 0
+                #Check the blocks behind it and see if they need to be rendered in
+                x, y, z, e = SelectBlock(xOff2, yPos + BlockYOffset)
+                if(x >= 0 and x < ChunkXSize and y >= 0 and y < ChunkYSize and z >= 0 and z < ChunkZSize):
+                    drawChunk[x][y][z] = Chunk[x][y][z]
+                x, y, z, e = SelectBlock(xOff3, yPos + BlockYOffset)
+                if (x >= 0 and x < ChunkXSize and y >= 0 and y < ChunkYSize and z >= 0 and z < ChunkZSize):
+                    drawChunk[x][y][z] = Chunk[x][y][z]
+                x, y, z, e = SelectBlock(xOff2, yPos + BlockYOffset * 2)
+                if (x >= 0 and x < ChunkXSize and y >= 0 and y < ChunkYSize and z >= 0 and z < ChunkZSize):
+                    drawChunk[x][y][z] = Chunk[x][y][z]
+                x, y, z, e = SelectBlock(xOff3, yPos + BlockYOffset * 2)
+                if (x >= 0 and x < ChunkXSize and y >= 0 and y < ChunkYSize and z >= 0 and z < ChunkZSize):
+                    drawChunk[x][y][z] = Chunk[x][y][z]
+                x, y, z, e = SelectBlock(xOff2, yPos + BlockYOffset * 3)
+                if (x >= 0 and x < ChunkXSize and y >= 0 and y < ChunkYSize and z >= 0 and z < ChunkZSize):
+                    drawChunk[x][y][z] = Chunk[x][y][z]
+                x, y, z, e = SelectBlock(xOff3, yPos + BlockYOffset * 3)
+                if (x >= 0 and x < ChunkXSize and y >= 0 and y < ChunkYSize and z >= 0 and z < ChunkZSize):
+                    drawChunk[x][y][z] = Chunk[x][y][z]
+
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_d or event.key == pygame.K_RIGHT:
                 movingRight = False
@@ -271,20 +341,18 @@ while run:
             if event.key == pygame.K_s or event.key == pygame.K_DOWN:
                 movingDown = False
 
+    # Screen Movement
     if(movingLeft):
-        XScreenOffset += 15
+        XScreenOffset += 16
     if(movingRight):
-        XScreenOffset -= 15
+        XScreenOffset -= 16
     if(movingUp):
-        YScreenOffset += 15
+        YScreenOffset += 16
     if(movingDown):
-        YScreenOffset -= 15
+        YScreenOffset -= 16
 
     # Background
     screen.fill((0, 0, 0))
-
-
-
     # Draw Tiles
     draw(math.floor(selectedX), math.floor(selectedY), math.floor(selectedZ), XScreenOffset, YScreenOffset)
     # Puts everything on the display

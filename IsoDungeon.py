@@ -10,7 +10,7 @@ from SpriteSheet import SpriteSheet, scale_image
 # game window
 SCREEN_WIDTH = 1924
 SCREEN_HEIGHT = 1000
-os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (-1920,32)
+#os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (-1920,32) # makes it appear on my second monitor
 
 pygame.init()
 

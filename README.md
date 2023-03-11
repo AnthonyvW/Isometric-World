@@ -1,4 +1,4 @@
-# Isometric-World
+# Isometric World
 A Psuedo 3D World Viewer that uses 2D isometric Sprites
 
 These commands are needed for it to run
